@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
+import { getApiBase, getWsBase } from '../lib/config'
 
 export function HostScreen() {
   const [code, setCode] = useState<string | null>(null)
@@ -9,7 +10,7 @@ export function HostScreen() {
   const [wsStatus, setWsStatus] = useState<'closed'|'open'|'connecting'>('closed')
   const wsRef = useRef<WebSocket | null>(null)
   const [attachCode, setAttachCode] = useState('')
-  const apiBase = '/api'
+  const apiBase = getApiBase()
 
   const createRoom = async () => {
     setError(null)
@@ -27,7 +28,7 @@ export function HostScreen() {
   }
 
   const openWsForCode = (roomCode: string) => {
-    const ws = new WebSocket(`${location.origin.replace('http','ws')}/api/rooms/${roomCode}/ws`)
+  const ws = new WebSocket(`${getWsBase()}/rooms/${roomCode}/ws`)
     wsRef.current = ws
     setWsStatus('connecting')
     ws.onopen = () => {

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { getWsBase } from '../lib/config'
 
 export function Player() {
   const params = useParams()
@@ -14,7 +15,7 @@ export function Player() {
   const wsRef = useRef<WebSocket | null>(null)
 
   useEffect(()=>{
-    const ws = new WebSocket(`${location.origin.replace('http','ws')}/api/rooms/${roomId}/ws`)
+  const ws = new WebSocket(`${getWsBase()}/rooms/${roomId}/ws`)
     wsRef.current = ws
   ws.onopen = () => { setStatus('open'); ws.send(JSON.stringify({ type: 'hello', role: 'player', playerId, name: stored.name, avatar: stored.avatar })) }
     ws.onclose = () => setStatus('closed')
