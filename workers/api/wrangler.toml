@@ -6,8 +6,8 @@ compatibility_date = "2024-06-20"
 kv_namespaces = []
 
 d1_databases = [
-	# After `wrangler d1 create dontuknowpe_db`, replace database_id with the returned UUID
-	{ binding = "DB", database_name = "dontuknowpe_db", database_id = "<fill-after-create>", migrations_dir = "migrations" }
+	# Local-only DB for dev; wrangler uses .wrangler/state for the path
+	{ binding = "DB", database_name = "dontuknowpe_db", database_id = "local", migrations_dir = "migrations" }
 ]
 
 [[durable_objects.bindings]]
@@ -18,18 +18,11 @@ class_name = "RoomDO"
 tag = "v1"
 new_classes = ["RoomDO"]
 
-[env.staging]
-vars = { }
-kv_namespaces = []
-d1_databases = [
-	# Fill with real DB once created: wrangler d1 create dontuknowpe-db-staging
-	# { binding = "DB", database_name = "dontuknowpe-db-staging", database_id = "<id>" }
-]
-
 [env.production]
 vars = { }
 kv_namespaces = []
 d1_databases = [
-	# Fill with real DB once created: wrangler d1 create dontuknowpe-db
-	# { binding = "DB", database_name = "dontuknowpe-db", database_id = "<id>" }
+	# Fill with real DB: wrangler d1 create dontuknowpe-db
+	# Set database_id below to your production D1 UUID via CI before deploy
+	{ binding = "DB", database_name = "dontuknowpe-db", database_id = "<id>", migrations_dir = "migrations" }
 ]
