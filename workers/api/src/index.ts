@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { roomCode, roomNameFromCode } from './utils/room'
 import { GAME_RULES } from './game/constants'
+import { normalizeQuestion, selectQuestions } from './utils/db'
 import type { ClientMsg, ServerMsg } from './game/protocol'
 
 export type Bindings = {
@@ -46,7 +47,8 @@ export class RoomDO implements DurableObject {
   round: 1 | 2 | 3 = 1
   qIndex = 0
   phase: 'lobby' | 'reveal' | 'question' | 'inter' = 'lobby'
-  currentQ?: { id: string; kind: string; text: string; correct: any }
+  currentQ?: { id: string; kind: 'tf'|'mc'|'num'; text: string; correct: any; options?: string[]; tolerance?: number }
+  usedIds: Set<string> = new Set()
   answerStartAt = 0
   answers: Map<string, { correct: boolean; ms: number; at: number }> = new Map()
   constructor(state: DurableObjectState, env: Bindings) {
@@ -128,9 +130,19 @@ export class RoomDO implements DurableObject {
   private checkAnswer(msg: { questionId: string; payload: any }) {
     if (!this.currentQ || this.currentQ.id !== msg.questionId) return false
     const c = this.currentQ.correct
-    return JSON.stringify(c) === JSON.stringify(msg.payload)
+    if (this.currentQ.kind === 'tf') {
+      return Boolean(c) === Boolean(msg.payload)
+    }
+    if (this.currentQ.kind === 'mc') {
+      return Number(c) === Number(msg.payload)
+    }
+    // numeric with tolerance
+    const tol = Number(this.currentQ.tolerance || 0)
+    const ans = Number(msg.payload)
+    const corr = Number(c)
+    return Math.abs(ans - corr) <= tol
   }
-  private nextQuestion() {
+  private async nextQuestion() {
     if (this.qIndex >= GAME_RULES.questionsPerRound) {
       if (this.round < 3) {
         this.phase = 'inter'
@@ -145,11 +157,22 @@ export class RoomDO implements DurableObject {
       this.broadcast({ type: 'leaderboard', players, top3: players.slice(0,3).map(p=>p.id) })
       return
     }
-    // TODO: pull from D1; for now stub a question
-    this.currentQ = { id: crypto.randomUUID(), kind: 'tf', text: 'PE is fun?', correct: true }
-    this.phase = 'reveal'
-    const revealAt = Date.now() + GAME_RULES.answerDelayMs
-    this.broadcast({ type: 'question', q: { id: this.currentQ.id, text: this.currentQ.text, kind: this.currentQ.kind }, revealAt })
+    // Fetch next random question from D1 excluding used ones
+  const rows = await selectQuestions(this.env.DB, 1, Array.from(this.usedIds), [], ['tf'])
+    if (!rows.length) {
+      // fallback simple TF if DB empty
+      this.currentQ = { id: crypto.randomUUID(), kind: 'tf', text: 'PE is fun?', correct: true }
+    } else {
+      const nq = normalizeQuestion(rows[0])
+      this.currentQ = nq as any
+      this.usedIds.add(nq.id)
+    }
+  this.phase = 'reveal'
+  const revealAt = Date.now() + GAME_RULES.answerDelayMs
+  const cq = this.currentQ!
+  const qBrief: any = { id: cq.id, text: cq.text, kind: cq.kind }
+  if (cq.kind === 'mc') qBrief.options = cq.options
+  this.broadcast({ type: 'question', q: qBrief, revealAt })
     setTimeout(() => this.openAnswers(), GAME_RULES.answerDelayMs)
   }
   private openAnswers() {

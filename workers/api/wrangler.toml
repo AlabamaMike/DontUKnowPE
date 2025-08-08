@@ -3,13 +3,12 @@ main = "src/index.ts"
 compatibility_date = "2024-06-20"
 
 # Bindings (fill IDs after creating resources)
-# kv_namespaces = [
-#   { binding = "KV_CONFIG", id = "<your-kv-id>" }
-# ]
+kv_namespaces = []
 
-# d1_databases = [
-#   { binding = "DB", database_name = "dontuknowpe-db", database_id = "<your-d1-id>" }
-# ]
+d1_databases = [
+	# After `wrangler d1 create dontuknowpe_db`, replace database_id with the returned UUID
+	{ binding = "DB", database_name = "dontuknowpe_db", database_id = "<fill-after-create>", migrations_dir = "migrations" }
+]
 
 [[durable_objects.bindings]]
 name = "ROOMS"
@@ -18,3 +17,19 @@ class_name = "RoomDO"
 [[migrations]]
 tag = "v1"
 new_classes = ["RoomDO"]
+
+[env.staging]
+vars = { }
+kv_namespaces = []
+d1_databases = [
+	# Fill with real DB once created: wrangler d1 create dontuknowpe-db-staging
+	# { binding = "DB", database_name = "dontuknowpe-db-staging", database_id = "<id>" }
+]
+
+[env.production]
+vars = { }
+kv_namespaces = []
+d1_databases = [
+	# Fill with real DB once created: wrangler d1 create dontuknowpe-db
+	# { binding = "DB", database_name = "dontuknowpe-db", database_id = "<id>" }
+]

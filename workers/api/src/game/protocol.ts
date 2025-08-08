@@ -4,7 +4,7 @@ export type ClientAnswer = { type: 'answer'; playerId: string; questionId: strin
 export type ClientMsg = ClientHello | ClientStart | ClientAnswer
 
 export type ServerLobby = { type: 'lobby'; code: string; players: Array<{ id: string; name: string; score: number; avatar?: string }> }
-export type ServerQuestion = { type: 'question'; q: { id: string; text: string; kind: string }; revealAt: number }
+export type ServerQuestion = { type: 'question'; q: { id: string; text: string; kind: string; options?: string[] }; revealAt: number }
 export type ServerAnswerOpen = { type: 'answer_open'; q: any; closesAt: number }
 export type ServerReveal = { type: 'reveal'; questionId: string; correct: any; perPlayer: Array<{ id: string; correct: boolean; delta: number; score: number; ms?: number }> }
 export type ServerInter = { type: 'inter'; message: string; nextAt: number }
