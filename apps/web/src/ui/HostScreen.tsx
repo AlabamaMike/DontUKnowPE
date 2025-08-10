@@ -11,6 +11,10 @@ export function HostScreen() {
   const wsRef = useRef<WebSocket | null>(null)
   const [attachCode, setAttachCode] = useState('')
   const apiBase = getApiBase()
+  const [phase, setPhase] = useState<'lobby'|'question_preview'|'answer'|'reveal'|'inter'|'leaderboard'|'ended'>('lobby')
+  const [q, setQ] = useState<any>(null)
+  const [reveal, setReveal] = useState<{questionId?:string; correct?:any; perPlayer?:Array<{id:string; delta:number; score:number; correct:boolean; ms?:number}>}|null>(null)
+  const [leaders, setLeaders] = useState<Array<{id:string; name:string; score:number; avgMs:number}>>([])
 
   const createRoom = async () => {
     setError(null)
@@ -46,7 +50,13 @@ export function HostScreen() {
     ws.onmessage = (ev) => {
       try{
         const msg = JSON.parse(ev.data)
-        if (msg.type === 'lobby') setPlayers(msg.players)
+        if (msg.type === 'lobby') { setPlayers(msg.players); setPhase('lobby') }
+        if (msg.type === 'question') { setPhase('question_preview'); setQ(msg.q) }
+        if (msg.type === 'answer_open') { setPhase('answer'); setQ(msg.q) }
+        if (msg.type === 'reveal') { setPhase('reveal'); setReveal({ questionId: msg.questionId, correct: msg.correct, perPlayer: msg.perPlayer }) }
+        if (msg.type === 'inter') { setPhase('inter') }
+        if (msg.type === 'leaderboard') { setPhase('leaderboard'); setLeaders(msg.players || []) }
+        if (msg.type === 'ended') { setPhase('ended') }
       }catch{}
     }
   }
@@ -71,24 +81,73 @@ export function HostScreen() {
             <p className="opacity-80">Scan to join on your phone.</p>
             <div className="mt-4 text-left max-w-sm mx-auto">
               <div className="text-sm opacity-70">WS: {wsStatus}</div>
-              <div className="mt-2">Players:</div>
-              <ul className="text-left text-sm bg-white/5 rounded p-2">
-                {players.map(p=> (
-                  <li key={p.id} className="flex items-center gap-2 py-1">
-                    {p.avatar ? <img src={p.avatar} alt="av" className="w-6 h-6 rounded-full"/> : <div className="w-6 h-6 rounded-full bg-white/10"/>}
-                    <span className="flex-1">{p.name}</span>
-                    <span className="opacity-70">{p.score}</span>
-                  </li>
-                ))}
-              </ul>
-              <button disabled={players.length < 2} onClick={async ()=> {
+              {phase === 'lobby' && (
+                <>
+                  <div className="mt-2">Players:</div>
+                  <ul className="text-left text-sm bg-white/5 rounded p-2">
+                    {players.map(p=> (
+                      <li key={p.id} className="flex items-center gap-2 py-1">
+                        {p.avatar ? <img src={p.avatar} alt="av" className="w-6 h-6 rounded-full"/> : <div className="w-6 h-6 rounded-full bg-white/10"/>}
+                        <span className="flex-1">{p.name}</span>
+                        <span className="opacity-70">{p.score}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              {phase === 'question_preview' && q && (
+                <div className="mt-3 p-3 bg-white/5 rounded">
+                  <div className="text-sm opacity-70">Get ready…</div>
+                  <div className="text-lg">{q.text}</div>
+                </div>
+              )}
+              {phase === 'answer' && q && (
+                <div className="mt-3 p-3 bg-white/5 rounded">
+                  <div className="text-sm opacity-70">Answering…</div>
+                  <div className="text-lg">{q.text}</div>
+                  {q.kind === 'mc' && Array.isArray(q.options) && (
+                    <ul className="mt-2 text-sm grid gap-1">
+                      {q.options.map((opt:string, idx:number)=> (<li key={idx} className="px-2 py-1 bg-black/20 rounded">{idx}. {opt}</li>))}
+                    </ul>
+                  )}
+                </div>
+              )}
+              {phase === 'reveal' && reveal && (
+                <div className="mt-3 p-3 bg-white/5 rounded">
+                  <div className="text-lg">Answer: <span className="font-mono">{String(reveal.correct)}</span></div>
+                  <ul className="mt-2 text-sm grid gap-1">
+                    {reveal.perPlayer?.map(p => (
+                      <li key={p.id} className="flex justify-between px-2 py-1 bg-black/20 rounded">
+                        <span>{players.find(x=>x.id===p.id)?.name || p.id}</span>
+                        <span className={p.correct? 'text-emerald-400':'text-rose-400'}>{p.correct? `+${p.delta}`:'0'} → {p.score}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {phase === 'leaderboard' && (
+                <div className="mt-3 p-3 bg-white/5 rounded">
+                  <div className="text-lg mb-2">Leaderboard</div>
+                  <ul className="text-sm grid gap-1">
+                    {leaders.map((p,i)=> (
+                      <li key={p.id} className="flex justify-between px-2 py-1 bg-black/20 rounded"><span>{i+1}. {p.name}</span><span>{p.score}</span></li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {phase === 'ended' && (
+                <div className="mt-3 p-3 bg-white/5 rounded">
+                  <div className="text-lg">Game Over</div>
+                </div>
+              )}
+              <button disabled={players.length < 2 || phase !== 'lobby'} onClick={async ()=> {
                 if (!code) return
                 if (isAzureWps()) {
                   await fetch(`${apiBase}/rooms/${code}/start`, { method: 'POST' })
                 } else {
                   wsRef.current?.send(JSON.stringify({ type: 'start' }))
                 }
-              }} className={`mt-3 px-4 py-2 rounded ${players.length<2? 'bg-emerald-900 cursor-not-allowed':'bg-emerald-600 hover:bg-emerald-500'}`}>Start Game</button>
+              }} className={`mt-3 px-4 py-2 rounded ${(players.length<2||phase!=='lobby')? 'bg-emerald-900 cursor-not-allowed':'bg-emerald-600 hover:bg-emerald-500'}`}>Start Game</button>
             </div>
           </div>
         )}

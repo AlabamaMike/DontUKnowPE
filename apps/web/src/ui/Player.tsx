@@ -10,9 +10,12 @@ export function Player() {
   }, []) as { playerId?: string; name?: string; avatar?: string }
   const playerId = useMemo(()=> stored.playerId || crypto.randomUUID(), [stored])
   const [status, setStatus] = useState<'connecting'|'open'|'closed'>('connecting')
-  const [phase, setPhase] = useState<string>('lobby')
+  const [phase, setPhase] = useState<'lobby'|'question_preview'|'answer'|'reveal'|'inter'|'leaderboard'|'ended'>('lobby')
   const [q, setQ] = useState<any>(null)
   const [numInput, setNumInput] = useState('')
+  const [answered, setAnswered] = useState(false)
+  const [myReveal, setMyReveal] = useState<{correct?: boolean; delta?: number; score?: number; ms?: number} | null>(null)
+  const [leaders, setLeaders] = useState<Array<{id:string; name:string; score:number; avgMs:number}>>([])
   const wsRef = useRef<WebSocket | null>(null)
   const apiBase = getApiBase()
 
@@ -32,8 +35,17 @@ export function Player() {
       ws.onmessage = (ev) => {
       try{
         const msg = JSON.parse(ev.data)
-        if (msg.type === 'answer_open') { setPhase('answer'); setQ(msg.q) }
-        if (msg.type === 'reveal') { setPhase('reveal') }
+        if (msg.type === 'lobby') { setPhase('lobby'); setQ(null); setAnswered(false); setMyReveal(null) }
+        if (msg.type === 'question') { setPhase('question_preview'); setQ(msg.q); setAnswered(false); setMyReveal(null) }
+        if (msg.type === 'answer_open') { setPhase('answer'); setQ(msg.q); setAnswered(false); setMyReveal(null) }
+        if (msg.type === 'reveal') {
+          setPhase('reveal')
+          const mine = Array.isArray(msg.perPlayer) ? msg.perPlayer.find((p:any)=> p.id === playerId) : null
+          if (mine) setMyReveal({ correct: !!mine.correct, delta: mine.delta, score: mine.score, ms: mine.ms })
+        }
+        if (msg.type === 'inter') { setPhase('inter') }
+        if (msg.type === 'leaderboard') { setPhase('leaderboard'); setLeaders(msg.players || []) }
+        if (msg.type === 'ended') { setPhase('ended') }
       }catch{}
       }
     })()
@@ -41,8 +53,9 @@ export function Player() {
   },[roomId, playerId])
 
   const answer = (payload: any) => {
-    if (!wsRef.current || !q) return
+    if (!wsRef.current || !q || phase !== 'answer' || answered) return
     wsRef.current.send(JSON.stringify({ type: 'answer', playerId, questionId: q.id, payload, at: Date.now() }))
+    setAnswered(true)
   }
 
   return (
@@ -52,30 +65,73 @@ export function Player() {
   {stored?.name && <div className="mt-1 text-lg">{stored.name}</div>}
       <div className="text-sm opacity-70">WS: {status} | Phase: {phase}</div>
       {phase === 'lobby' && <p className="opacity-80">Waiting for the host to start…</p>}
-      {phase !== 'lobby' && q && (
+      {phase === 'question_preview' && q && (
         <div className="mt-4">
-          <div className="text-xl mb-2">{q.id}: {q.kind}</div>
-          {/* demo: for tf, buttons; for mc/numeric, we’ll expand later */}
+          <div className="text-sm opacity-70">Get ready…</div>
+          <div className="text-xl mb-2">{q.text}</div>
+          {q.kind === 'mc' && Array.isArray(q.options) && (
+            <ul className="mt-2 text-sm grid gap-1">
+              {q.options.map((opt:string, idx:number)=> (<li key={idx} className="px-2 py-1 bg-black/20 rounded">{idx}. {opt}</li>))}
+            </ul>
+          )}
+        </div>
+      )}
+      {phase === 'answer' && q && (
+        <div className="mt-4">
+          <div className="text-sm opacity-70">Answer now</div>
+          <div className="text-xl mb-2">{q.text}</div>
           {q.kind === 'tf' && (
             <div className="grid grid-cols-2 gap-2">
-              <button className="px-4 py-3 bg-emerald-600 rounded" onClick={()=>answer(true)}>True</button>
-              <button className="px-4 py-3 bg-rose-600 rounded" onClick={()=>answer(false)}>False</button>
+              <button disabled={answered} className={`px-4 py-3 rounded ${answered? 'bg-emerald-900':'bg-emerald-600'}`} onClick={()=>answer(true)}>True</button>
+              <button disabled={answered} className={`px-4 py-3 rounded ${answered? 'bg-rose-900':'bg-rose-600'}`} onClick={()=>answer(false)}>False</button>
             </div>
           )}
           {q.kind === 'mc' && Array.isArray(q.options) && (
             <div className="grid gap-2">
               {q.options.map((opt:string, idx:number)=>(
-                <button key={idx} className="px-4 py-3 bg-indigo-600 rounded" onClick={()=>answer(idx)}>{opt}</button>
+                <button key={idx} disabled={answered} className={`px-4 py-3 rounded ${answered? 'bg-indigo-900':'bg-indigo-600'}`} onClick={()=>answer(idx)}>{opt}</button>
               ))}
             </div>
           )}
           {q.kind === 'num' && (
-            <form className="grid gap-2" onSubmit={(e)=>{ e.preventDefault(); answer(Number(numInput)); setNumInput('') }}>
-              <input value={numInput} onChange={e=>setNumInput(e.target.value)} className="px-3 py-2 bg-white/10 rounded" placeholder="Enter number" />
-              <button className="px-4 py-2 bg-sky-600 rounded" type="submit">Submit</button>
+            <form className="grid gap-2" onSubmit={(e)=>{ e.preventDefault(); if(!answered){ answer(Number(numInput)); setNumInput('') } }}>
+              <input value={numInput} onChange={e=>setNumInput(e.target.value)} className="px-3 py-2 bg-white/10 rounded" placeholder="Enter number" disabled={answered} />
+              <button className={`px-4 py-2 rounded ${answered? 'bg-sky-900':'bg-sky-600'}`} type="submit" disabled={answered}>Submit</button>
             </form>
           )}
+          {answered && <div className="mt-2 text-sm opacity-80">Answer received. Waiting for reveal…</div>}
         </div>
+      )}
+      {phase === 'reveal' && (
+        <div className="mt-4">
+          <div className="text-xl mb-1">Reveal</div>
+          {myReveal ? (
+            <div className="text-lg">
+              <span className={myReveal.correct ? 'text-emerald-400' : 'text-rose-400'}>
+                {myReveal.correct ? 'Correct' : 'Incorrect'}
+              </span>
+              {typeof myReveal.delta === 'number' && <span> (+{myReveal.delta})</span>} {typeof myReveal.score === 'number' && <span> → {myReveal.score}</span>}
+            </div>
+          ) : (
+            <div className="opacity-80">No answer recorded.</div>
+          )}
+        </div>
+      )}
+      {phase === 'inter' && (
+        <div className="mt-4 opacity-80">Next question starting soon…</div>
+      )}
+      {phase === 'leaderboard' && (
+        <div className="mt-4">
+          <div className="text-xl mb-2">Leaderboard</div>
+          <ul className="text-sm grid gap-1">
+            {leaders.map((p,i)=> (
+              <li key={p.id} className="flex justify-between px-2 py-1 bg-black/20 rounded"><span>{i+1}. {p.name}</span><span>{p.score}</span></li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {phase === 'ended' && (
+        <div className="mt-6 text-xl">Game Over</div>
       )}
     </div>
   )
