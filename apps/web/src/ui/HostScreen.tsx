@@ -16,6 +16,13 @@ export function HostScreen() {
   const [reveal, setReveal] = useState<{questionId?:string; correct?:any; perPlayer?:Array<{id:string; delta:number; score:number; correct:boolean; ms?:number}>}|null>(null)
   const [leaders, setLeaders] = useState<Array<{id:string; name:string; score:number; avgMs:number}>>([])
   const [until, setUntil] = useState<number | null>(null)
+  const [round, setRound] = useState<number>(1)
+  const [qIndex, setQIndex] = useState<number>(0)
+  const [, forceTick] = useState(0)
+  useEffect(()=>{
+    const t = setInterval(()=> forceTick(n=>n+1), 1000)
+    return ()=> clearInterval(t)
+  },[])
 
   const createRoom = async () => {
     setError(null)
@@ -52,11 +59,11 @@ export function HostScreen() {
       try{
         const msg = JSON.parse(ev.data)
         if (msg.type === 'lobby') { setPlayers(msg.players); setPhase('lobby') }
-  if (msg.type === 'question') { setPhase('question_preview'); setQ(msg.q); setUntil(msg.until || null) }
-  if (msg.type === 'answer_open') { setPhase('answer'); setQ(msg.q); setUntil(msg.until || null) }
-  if (msg.type === 'reveal') { setPhase('reveal'); setReveal({ questionId: msg.questionId, correct: msg.correct, perPlayer: msg.perPlayer }); setUntil(msg.until || null) }
-  if (msg.type === 'inter') { setPhase('inter'); setUntil(msg.until || null) }
-  if (msg.type === 'leaderboard') { setPhase('leaderboard'); setLeaders(msg.players || []); setUntil(msg.until || null) }
+  if (msg.type === 'question') { setPhase('question_preview'); setQ(msg.q); setUntil(msg.until || null); if(typeof msg.round==='number') setRound(msg.round); if(typeof msg.qIndex==='number') setQIndex(msg.qIndex) }
+  if (msg.type === 'answer_open') { setPhase('answer'); setQ(msg.q); setUntil(msg.until || null); if(typeof msg.round==='number') setRound(msg.round); if(typeof msg.qIndex==='number') setQIndex(msg.qIndex) }
+  if (msg.type === 'reveal') { setPhase('reveal'); setReveal({ questionId: msg.questionId, correct: msg.correct, perPlayer: msg.perPlayer }); setUntil(msg.until || null); if(typeof msg.round==='number') setRound(msg.round); if(typeof msg.qIndex==='number') setQIndex(msg.qIndex) }
+  if (msg.type === 'inter') { setPhase('inter'); setUntil(msg.until || null); if(typeof msg.round==='number') setRound(msg.round); if(typeof msg.qIndex==='number') setQIndex(msg.qIndex) }
+  if (msg.type === 'leaderboard') { setPhase('leaderboard'); setLeaders(msg.players || []); setUntil(msg.until || null); if(typeof msg.round==='number') setRound(msg.round) }
         if (msg.type === 'ended') { setPhase('ended') }
       }catch{}
     }
@@ -98,13 +105,13 @@ export function HostScreen() {
               )}
         {phase === 'question_preview' && q && (
                 <div className="mt-3 p-3 bg-white/5 rounded">
-          <div className="text-sm opacity-70">Get ready… {until ? `(${Math.max(0, Math.ceil((until - Date.now())/1000))}s)` : ''}</div>
+          <div className="text-sm opacity-70">Round {round} · Q{qIndex+1} · Get ready… {until ? `(${Math.max(0, Math.ceil((until - Date.now())/1000))}s)` : ''}</div>
                   <div className="text-lg">{q.text}</div>
                 </div>
               )}
               {phase === 'answer' && q && (
                 <div className="mt-3 p-3 bg-white/5 rounded">
-          <div className="text-sm opacity-70">Answering… {until ? `(${Math.max(0, Math.ceil((until - Date.now())/1000))}s)` : ''}</div>
+          <div className="text-sm opacity-70">Round {round} · Q{qIndex+1} · Answering… {until ? `(${Math.max(0, Math.ceil((until - Date.now())/1000))}s)` : ''}</div>
                   <div className="text-lg">{q.text}</div>
                   {q.kind === 'mc' && Array.isArray(q.options) && (
                     <ul className="mt-2 text-sm grid gap-1">
@@ -115,7 +122,7 @@ export function HostScreen() {
               )}
               {phase === 'reveal' && reveal && (
                 <div className="mt-3 p-3 bg-white/5 rounded">
-                  <div className="text-lg">Answer: <span className="font-mono">{String(reveal.correct)}</span></div>
+          <div className="text-lg">Answer: <span className="font-mono">{q?.kind==='mc' && Array.isArray(q?.options) && typeof reveal.correct==='number' ? q?.options?.[Number(reveal.correct)] : String(reveal.correct)}</span></div>
                   <ul className="mt-2 text-sm grid gap-1">
                     {reveal.perPlayer?.map(p => (
                       <li key={p.id} className="flex justify-between px-2 py-1 bg-black/20 rounded">

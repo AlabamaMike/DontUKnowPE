@@ -11,6 +11,6 @@ module.exports = async function (context, req) {
   const q = qs[0];
   const until = Date.now() + RULES.durations.answerWindowMs;
   await setRoomMeta(room, { phase: 'question', round: 1, qIndex: 0, until, currentQ: JSON.stringify(q), usedIds: JSON.stringify([q.id]) });
-  await svc.group(room).sendToAll(JSON.stringify({ type: 'answer_open', q, until }));
+  await svc.group(room).sendToAll(JSON.stringify({ type: 'answer_open', q, until, round: 1, qIndex: 0 }));
   return { status: 200, body: { ok: true } };
 }

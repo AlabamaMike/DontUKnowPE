@@ -17,6 +17,10 @@ export function Player() {
   const [myReveal, setMyReveal] = useState<{correct?: boolean; delta?: number; score?: number; ms?: number} | null>(null)
   const [leaders, setLeaders] = useState<Array<{id:string; name:string; score:number; avgMs:number}>>([])
   const [until, setUntil] = useState<number | null>(null)
+  const [round, setRound] = useState<number>(1)
+  const [qIndex, setQIndex] = useState<number>(0)
+  const [, forceTick] = useState(0)
+  useEffect(()=>{ const t = setInterval(()=> forceTick(n=>n+1), 1000); return ()=> clearInterval(t) }, [])
   const wsRef = useRef<WebSocket | null>(null)
   const apiBase = getApiBase()
 
@@ -37,16 +41,17 @@ export function Player() {
       try{
         const msg = JSON.parse(ev.data)
         if (msg.type === 'lobby') { setPhase('lobby'); setQ(null); setAnswered(false); setMyReveal(null); setUntil(null) }
-        if (msg.type === 'question') { setPhase('question_preview'); setQ(msg.q); setAnswered(false); setMyReveal(null); setUntil(msg.until || null) }
-        if (msg.type === 'answer_open') { setPhase('answer'); setQ(msg.q); setAnswered(false); setMyReveal(null); setUntil(msg.until || null) }
+  if (msg.type === 'question') { setPhase('question_preview'); setQ(msg.q); setAnswered(false); setMyReveal(null); setUntil(msg.until || null); if(typeof msg.round==='number') setRound(msg.round); if(typeof msg.qIndex==='number') setQIndex(msg.qIndex) }
+  if (msg.type === 'answer_open') { setPhase('answer'); setQ(msg.q); setAnswered(false); setMyReveal(null); setUntil(msg.until || null); if(typeof msg.round==='number') setRound(msg.round); if(typeof msg.qIndex==='number') setQIndex(msg.qIndex) }
         if (msg.type === 'reveal') {
           setPhase('reveal')
           const mine = Array.isArray(msg.perPlayer) ? msg.perPlayer.find((p:any)=> p.id === playerId) : null
           if (mine) setMyReveal({ correct: !!mine.correct, delta: mine.delta, score: mine.score, ms: mine.ms })
           setUntil(msg.until || null)
+          if(typeof msg.round==='number') setRound(msg.round); if(typeof msg.qIndex==='number') setQIndex(msg.qIndex)
         }
-        if (msg.type === 'inter') { setPhase('inter'); setUntil(msg.until || null) }
-        if (msg.type === 'leaderboard') { setPhase('leaderboard'); setLeaders(msg.players || []); setUntil(msg.until || null) }
+        if (msg.type === 'inter') { setPhase('inter'); setUntil(msg.until || null); if(typeof msg.round==='number') setRound(msg.round); if(typeof msg.qIndex==='number') setQIndex(msg.qIndex) }
+        if (msg.type === 'leaderboard') { setPhase('leaderboard'); setLeaders(msg.players || []); setUntil(msg.until || null); if(typeof msg.round==='number') setRound(msg.round) }
         if (msg.type === 'ended') { setPhase('ended') }
       }catch{}
       }
@@ -69,7 +74,7 @@ export function Player() {
       {phase === 'lobby' && <p className="opacity-80">Waiting for the host to start…</p>}
     {phase === 'question_preview' && q && (
         <div className="mt-4">
-      <div className="text-sm opacity-70">Get ready… {until ? `(${Math.max(0, Math.ceil((until - Date.now())/1000))}s)` : ''}</div>
+          <div className="text-sm opacity-70">Round {round} · Q{qIndex+1} · Get ready… {until ? `(${Math.max(0, Math.ceil((until - Date.now())/1000))}s)` : ''}</div>
           <div className="text-xl mb-2">{q.text}</div>
           {q.kind === 'mc' && Array.isArray(q.options) && (
             <ul className="mt-2 text-sm grid gap-1">
@@ -80,7 +85,7 @@ export function Player() {
       )}
     {phase === 'answer' && q && (
         <div className="mt-4">
-      <div className="text-sm opacity-70">Answer now {until ? `(${Math.max(0, Math.ceil((until - Date.now())/1000))}s)` : ''}</div>
+          <div className="text-sm opacity-70">Round {round} · Q{qIndex+1} · Answer now {until ? `(${Math.max(0, Math.ceil((until - Date.now())/1000))}s)` : ''}</div>
           <div className="text-xl mb-2">{q.text}</div>
           {q.kind === 'tf' && (
             <div className="grid grid-cols-2 gap-2">

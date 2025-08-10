@@ -45,14 +45,14 @@ module.exports = async function (context, myTimer) {
       // lightweight: we only broadcast reveal; players are persisted via joinRoom on change in this scaffold
   const untilReveal = now + RULES.durations.revealMs;
   await setRoomMeta(room, { phase: 'reveal', until: untilReveal });
-  await svc.group(room).sendToAll(JSON.stringify({ type: 'reveal', questionId: q?.id, correct: q?.correct, perPlayer, until: untilReveal }));
+  await svc.group(room).sendToAll(JSON.stringify({ type: 'reveal', questionId: q?.id, correct: q?.correct, perPlayer, until: untilReveal, round, qIndex: Number(meta.qIndex || 0) }));
       continue;
     }
     if (phase === 'reveal') {
   // move to inter
   const untilInter = now + RULES.durations.interMs;
   await setRoomMeta(room, { phase: 'inter', until: untilInter });
-  await svc.group(room).sendToAll(JSON.stringify({ type: 'inter', until: untilInter }));
+  await svc.group(room).sendToAll(JSON.stringify({ type: 'inter', until: untilInter, round: Number(meta.round || 1), qIndex: Number(meta.qIndex || 0) }));
       continue;
     }
     if (phase === 'inter' || phase === 'betweenRounds') {
@@ -64,7 +64,7 @@ module.exports = async function (context, myTimer) {
         const players = await getPlayers(room);
         players.sort((a,b)=> (b.score||0) - (a.score||0) || (a.avgMs||0) - (b.avgMs||0));
         const untilBetween = now + (round < 3 ? RULES.durations.betweenMs : 0);
-        await svc.group(room).sendToAll(JSON.stringify({ type: 'leaderboard', players: players.map(p=>({ id:p.id, name:p.name, score:p.score||0, avgMs:p.avgMs||0 })), top3: players.slice(0,3).map(p=>p.id), until: untilBetween }));
+  await svc.group(room).sendToAll(JSON.stringify({ type: 'leaderboard', players: players.map(p=>({ id:p.id, name:p.name, score:p.score||0, avgMs:p.avgMs||0 })), top3: players.slice(0,3).map(p=>p.id), until: untilBetween, round }));
         if (round < 3) {
           await setRoomMeta(room, { phase: 'betweenRounds', until: untilBetween, qIndex: 0, round: round + 1 });
         } else {
@@ -84,7 +84,7 @@ module.exports = async function (context, myTimer) {
       const nextUsed = JSON.stringify([...(used||[]), q.id]);
   const untilAnswer = now + RULES.durations.answerWindowMs;
   await setRoomMeta(room, { phase: 'question', until: untilAnswer, currentQ: JSON.stringify(q), usedIds: nextUsed, qIndex: qIndex + 1, round });
-  await svc.group(room).sendToAll(JSON.stringify({ type: 'answer_open', q, until: untilAnswer }));
+  await svc.group(room).sendToAll(JSON.stringify({ type: 'answer_open', q, until: untilAnswer, round, qIndex: qIndex + 1 }));
       continue;
     }
   }
