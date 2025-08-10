@@ -61,7 +61,7 @@ export function Player() {
 
   const answer = (payload: any) => {
     if (!wsRef.current || !q || phase !== 'answer' || answered) return
-    wsRef.current.send(JSON.stringify({ type: 'answer', playerId, questionId: q.id, payload, at: Date.now() }))
+    wsRef.current.send(JSON.stringify({ type: 'answer', room: roomId, playerId, questionId: q.id, payload, at: Date.now() }))
     setAnswered(true)
   }
 
