@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import { getApiBase, getWsBase, isAzureWps } from '../lib/config'
+import { CountdownBar } from './CountdownBar'
 
 export function HostScreen() {
   const [code, setCode] = useState<string | null>(null)
@@ -106,12 +107,14 @@ export function HostScreen() {
         {phase === 'question_preview' && q && (
                 <div className="mt-3 p-3 bg-white/5 rounded">
           <div className="text-sm opacity-70">Round {round} · Q{qIndex+1} · Get ready… {until ? `(${Math.max(0, Math.ceil((until - Date.now())/1000))}s)` : ''}</div>
+          <CountdownBar phase="question_preview" until={until || undefined} />
                   <div className="text-lg">{q.text}</div>
                 </div>
               )}
               {phase === 'answer' && q && (
                 <div className="mt-3 p-3 bg-white/5 rounded">
           <div className="text-sm opacity-70">Round {round} · Q{qIndex+1} · Answering… {until ? `(${Math.max(0, Math.ceil((until - Date.now())/1000))}s)` : ''}</div>
+          <CountdownBar phase="answer" until={until || undefined} />
                   <div className="text-lg">{q.text}</div>
                   {q.kind === 'mc' && Array.isArray(q.options) && (
                     <ul className="mt-2 text-sm grid gap-1">
@@ -122,7 +125,8 @@ export function HostScreen() {
               )}
               {phase === 'reveal' && reveal && (
                 <div className="mt-3 p-3 bg-white/5 rounded">
-          <div className="text-lg">Answer: <span className="font-mono">{q?.kind==='mc' && Array.isArray(q?.options) && typeof reveal.correct==='number' ? q?.options?.[Number(reveal.correct)] : String(reveal.correct)}</span></div>
+                  <div className="text-lg">Answer: <span className="font-mono">{q?.kind==='mc' && Array.isArray(q?.options) && typeof reveal.correct==='number' ? `${reveal.correct}. ${q?.options?.[Number(reveal.correct)]}` : String(reveal.correct)}</span></div>
+                  <CountdownBar phase="reveal" until={until || undefined} />
                   <ul className="mt-2 text-sm grid gap-1">
                     {reveal.perPlayer?.map(p => (
                       <li key={p.id} className="flex justify-between px-2 py-1 bg-black/20 rounded">
@@ -135,10 +139,11 @@ export function HostScreen() {
               )}
               {phase === 'leaderboard' && (
                 <div className="mt-3 p-3 bg-white/5 rounded">
-          <div className="text-lg mb-2">Leaderboard {until ? <span className="text-sm opacity-70">(next in {Math.max(0, Math.ceil((until - Date.now())/1000))}s)</span> : null}</div>
+                  <div className="text-lg mb-2">Leaderboard {until ? <span className="text-sm opacity-70">(next in {Math.max(0, Math.ceil((until - Date.now())/1000))}s)</span> : null}</div>
+                  <CountdownBar phase="leaderboard" until={until || undefined} />
                   <ul className="text-sm grid gap-1">
                     {leaders.map((p,i)=> (
-                      <li key={p.id} className="flex justify-between px-2 py-1 bg-black/20 rounded"><span>{i+1}. {p.name}</span><span>{p.score}</span></li>
+                      <li key={p.id} className={`flex justify-between px-2 py-1 rounded ${i<3? 'bg-amber-500/20':'bg-black/20'}`}><span>{i+1}. {p.name}</span><span>{p.score}</span></li>
                     ))}
                   </ul>
                 </div>

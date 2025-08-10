@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { getApiBase, getWsBase, isAzureWps } from '../lib/config'
+import { CountdownBar } from './CountdownBar'
 
 export function Player() {
   const params = useParams()
@@ -23,6 +24,12 @@ export function Player() {
   useEffect(()=>{ const t = setInterval(()=> forceTick(n=>n+1), 1000); return ()=> clearInterval(t) }, [])
   const wsRef = useRef<WebSocket | null>(null)
   const apiBase = getApiBase()
+
+  const revealCorrectLabel = (opts: string[] = [], idx: number) => {
+    if (typeof idx !== 'number') return ''
+    if (!Array.isArray(opts) || idx < 0 || idx >= opts.length) return String(idx)
+    return `${idx}. ${opts[idx]}`
+  }
 
   useEffect(()=>{
     (async () => {
@@ -74,7 +81,8 @@ export function Player() {
       {phase === 'lobby' && <p className="opacity-80">Waiting for the host to start…</p>}
     {phase === 'question_preview' && q && (
         <div className="mt-4">
-          <div className="text-sm opacity-70">Round {round} · Q{qIndex+1} · Get ready… {until ? `(${Math.max(0, Math.ceil((until - Date.now())/1000))}s)` : ''}</div>
+      <div className="text-sm opacity-70">Round {round} · Q{qIndex+1} · Get ready… {until ? `(${Math.max(0, Math.ceil((until - Date.now())/1000))}s)` : ''}</div>
+      <CountdownBar phase="question_preview" until={until || undefined} />
           <div className="text-xl mb-2">{q.text}</div>
           {q.kind === 'mc' && Array.isArray(q.options) && (
             <ul className="mt-2 text-sm grid gap-1">
@@ -85,7 +93,8 @@ export function Player() {
       )}
     {phase === 'answer' && q && (
         <div className="mt-4">
-          <div className="text-sm opacity-70">Round {round} · Q{qIndex+1} · Answer now {until ? `(${Math.max(0, Math.ceil((until - Date.now())/1000))}s)` : ''}</div>
+      <div className="text-sm opacity-70">Round {round} · Q{qIndex+1} · Answer now {until ? `(${Math.max(0, Math.ceil((until - Date.now())/1000))}s)` : ''}</div>
+      <CountdownBar phase="answer" until={until || undefined} />
           <div className="text-xl mb-2">{q.text}</div>
           {q.kind === 'tf' && (
             <div className="grid grid-cols-2 gap-2">
@@ -112,6 +121,9 @@ export function Player() {
       {phase === 'reveal' && (
         <div className="mt-4">
           <div className="text-xl mb-1">Reveal</div>
+          {q?.kind==='mc' && Array.isArray(q?.options) && typeof (myReveal as any)?.correct==='number' && (
+            <div className="text-sm opacity-80">Correct: {(revealCorrectLabel(q.options, (myReveal as any)?.correct))}</div>
+          )}
           {myReveal ? (
             <div className="text-lg">
               <span className={myReveal.correct ? 'text-emerald-400' : 'text-rose-400'}>
@@ -122,17 +134,19 @@ export function Player() {
           ) : (
             <div className="opacity-80">No answer recorded.</div>
           )}
+          <CountdownBar phase="reveal" until={until || undefined} />
         </div>
       )}
       {phase === 'inter' && (
         <div className="mt-4 opacity-80">Next question starting soon…</div>
       )}
-    {phase === 'leaderboard' && (
+      {phase === 'leaderboard' && (
         <div className="mt-4">
-      <div className="text-xl mb-2">Leaderboard {until ? <span className="text-sm opacity-70">(next in {Math.max(0, Math.ceil((until - Date.now())/1000))}s)</span> : null}</div>
+          <div className="text-xl mb-2">Leaderboard {until ? <span className="text-sm opacity-70">(next in {Math.max(0, Math.ceil((until - Date.now())/1000))}s)</span> : null}</div>
+          <CountdownBar phase="leaderboard" until={until || undefined} />
           <ul className="text-sm grid gap-1">
             {leaders.map((p,i)=> (
-              <li key={p.id} className="flex justify-between px-2 py-1 bg-black/20 rounded"><span>{i+1}. {p.name}</span><span>{p.score}</span></li>
+              <li key={p.id} className={`flex justify-between px-2 py-1 rounded ${i<3? 'bg-amber-500/20':'bg-black/20'} ${p.id===playerId? 'ring-1 ring-white/40':''}`}><span>{i+1}. {p.name}</span><span>{p.score}</span></li>
             ))}
           </ul>
         </div>
