@@ -4,3 +4,5 @@ export const DURATIONS = {
   interMs: 2000,
   betweenMs: 3000,
 };
+
+export const QUESTIONS_PER_ROUND = 5;

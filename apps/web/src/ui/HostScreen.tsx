@@ -150,6 +150,7 @@ export function HostScreen() {
                       <li key={p.id} className={`flex justify-between px-2 py-1 rounded ${i<3? 'bg-amber-500/20':'bg-black/20'}`}><span>{i+1}. {p.name}</span><span>{p.score}</span></li>
                     ))}
                   </ul>
+                  {until && <div className="mt-3 text-center text-sm opacity-80">Round {round+1} starting soon…</div>}
                 </div>
               )}
               {phase === 'ended' && (

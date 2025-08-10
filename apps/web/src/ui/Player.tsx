@@ -125,8 +125,9 @@ export function Player() {
       {phase === 'reveal' && (
         <div className="mt-4">
           <div className="text-xl mb-1">Reveal</div>
-          {q?.kind==='mc' && Array.isArray(q?.options) && typeof (myReveal as any)?.correct==='number' && (
-            <div className="text-sm opacity-80">Correct: {(revealCorrectLabel(q.options, (myReveal as any)?.correct))}</div>
+          {/* If server includes correct value on reveal, prefer that for accuracy */}
+          {q?.kind==='mc' && Array.isArray(q?.options) && typeof (q as any)?.correct==='number' && (
+            <div className="text-sm opacity-80">Correct: {revealCorrectLabel(q.options, (q as any).correct)}</div>
           )}
           {myReveal ? (
             <div className="text-lg">
