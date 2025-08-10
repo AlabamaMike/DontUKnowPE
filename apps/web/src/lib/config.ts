@@ -8,5 +8,6 @@ export function getWsBase() {
 }
 
 export function isAzureWps() {
-  return Boolean(import.meta.env.VITE_AZURE_WPS)
+  // Default to Azure Web PubSub mode unless explicitly disabled
+  return import.meta.env.VITE_AZURE_WPS !== 'false'
 }

@@ -1,16 +1,17 @@
 # DontUKnowPE
 
-Cloudflare-first, serverless multiplayer trivia game ("You Don’t Know PE").
+Azure-first, serverless multiplayer trivia game ("You Don’t Know PE").
 
-- Frontend: React + Vite + Tailwind, deployable to Cloudflare Pages
-- Backend: Cloudflare Workers + Hono, Durable Objects for rooms, D1 for data, KV for config, optional R2 for media
-- Realtime: WebSockets handled by Durable Object per room
+- Frontend: React + Vite + Tailwind
+- Backend: Azure Functions + Azure Web PubSub for realtime, Redis for room state, Azure SQL for questions
+- Realtime: Azure Web PubSub groups per room
 - LLM: Azure OpenAI for witty commentary
 - TTS: Modular providers (default: ElevenLabs), rendered server-side
 
 ## Monorepo structure
 - apps/web: player/host/author web app
-- workers/api: API + websocket + room DO + providers
+- api-azure: Azure Functions API + realtime via Web PubSub
+- workers/api: (archived) Cloudflare Workers prototype (Hono + Durable Objects + D1)
 
 ## Quickstart
 1. Install Node 20+
@@ -18,7 +19,7 @@ Cloudflare-first, serverless multiplayer trivia game ("You Don’t Know PE").
 3. Start API and Web in dev
 
 ## Environment
-Copy `.env.example` to `.env` in workers/api and fill secrets.
+See `api-azure/README.md` for Azure setup and local development.
 
 ## License
 MIT

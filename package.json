@@ -4,21 +4,19 @@
   "version": "0.0.1",
   "workspaces": [
     "apps/*",
-    "workers/*"
+    "api-azure"
   ],
   "scripts": {
     "dev:web": "npm --workspace apps/web run dev",
-    "dev:api": "npm --workspace workers/api run dev",
+    "dev:api": "npm --workspace api-azure run start",
     "dev": "concurrently -n WEB,API -c blue,green \"npm run dev:web\" \"npm run dev:api\"",
-    "build": "npm run build:web && npm run build:api",
+    "build": "npm run build:web",
     "build:web": "npm --workspace apps/web run build",
-    "build:api": "npm --workspace workers/api run build",
     "format": "prettier -w ."
   },
   "devDependencies": {
     "@types/qrcode": "^1.5.5",
     "concurrently": "^8.2.2",
-    "prettier": "^3.3.3",
-    "wrangler": "^4.28.1"
+    "prettier": "^3.3.3"
   }
 }

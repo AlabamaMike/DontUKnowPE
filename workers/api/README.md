@@ -1,3 +1,5 @@
+> Archived prototype: This Cloudflare Workers implementation was an early prototype and is no longer part of the active build/deploy path. The project now targets Azure (see ../../api-azure).
+
 ## D1 setup
 
 - Create a local DB and apply migrations:
