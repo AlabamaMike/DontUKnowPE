@@ -4,6 +4,13 @@ const { getServiceClient } = require('../../lib/room');
 const RULES = require('../../lib/rules');
 
 module.exports = async function (context, req) {
+  const adminSecret = process.env.ADMIN_START_SECRET;
+  if (adminSecret) {
+    const provided = req.headers['x-admin-secret'] || (req.query && req.query.secret);
+    if (!provided || provided !== adminSecret) {
+      return { status: 401, body: { error: 'unauthorized' } };
+    }
+  }
   const { room } = context.bindingData;
   const svc = getServiceClient();
   const qs = await selectQuestions(1, [], ['tf','mc','num']);

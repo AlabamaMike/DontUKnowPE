@@ -91,7 +91,21 @@ async function joinRoom(room, player) {
 
 async function submitAnswer(room, { playerId, qid, answer, ms }) {
   const key = answersKey(room, qid);
-  await redis().hset(key, playerId, JSON.stringify({ answer, ms }));
+  // Only accept the first answer from a player
+  const r = redis();
+  try {
+    if (typeof r.hexists === 'function') {
+      const exists = await r.hexists(key, playerId);
+      if (exists) return { ok: false, duplicate: true };
+    } else {
+      // Fallback for in-memory store
+      const cur = await r.hgetall(key);
+      if (cur && Object.prototype.hasOwnProperty.call(cur, playerId)) {
+        return { ok: false, duplicate: true };
+      }
+    }
+  } catch {/* ignore feature detection errors */}
+  await r.hset(key, playerId, JSON.stringify({ answer, ms }));
   return { ok: true };
 }
 async function setRoomMeta(room, obj) {
@@ -106,4 +120,7 @@ async function listActiveRooms() {
   return await redis().smembers(activeRoomsKey());
 }
 
-module.exports = { createRoom, getRoomState, getPlayers, setPlayer, joinRoom, submitAnswer, getAnswers, getServiceClient, setRoomMeta, getRoomMeta, listActiveRooms };
+// Expose a getter for internal clients when needed (e.g., rate limiting)
+function __getRedis() { return redis(); }
+
+module.exports = { createRoom, getRoomState, getPlayers, setPlayer, joinRoom, submitAnswer, getAnswers, getServiceClient, setRoomMeta, getRoomMeta, listActiveRooms, __getRedis };

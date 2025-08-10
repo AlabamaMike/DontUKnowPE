@@ -1,5 +1,6 @@
 const { WebPubSubServiceClient } = require('@azure/web-pubsub');
 const { getRoomState, getPlayers, joinRoom, submitAnswer, getServiceClient, getAnswers } = require('../../lib/room');
+const { validateHello, validateAnswer } = require('../../lib/validation');
 
 module.exports = async function (context, data) {
   const hub = process.env.WEBPUBSUB_HUB;
@@ -18,7 +19,12 @@ module.exports = async function (context, data) {
 
   switch (payload.type) {
     case 'hello': {
-      const { room, name, avatar, role } = payload;
+      const parsed = validateHello(payload);
+      if (!parsed.success) {
+        context.log('hello validation failed', { errors: parsed.error.issues });
+        return { data: JSON.stringify({ type: 'error', error: 'invalid_hello' }), dataType: 'json' };
+      }
+      const { room, name, avatar, role } = parsed.data;
       if (role === 'host') {
         // add host connection to room group for broadcasts
         await getServiceClient().group(room).addConnection(connectionId);
@@ -29,11 +35,29 @@ module.exports = async function (context, data) {
       return { data: JSON.stringify({ type: 'ack', t: 'hello' }), dataType: 'json' };
     }
     case 'answer': {
-      // support both shapes: { room, qid, answer, ms } and { room, questionId, payload, at }
-      const room = payload.room;
-      const qid = payload.qid || payload.questionId;
-      const answer = typeof payload.answer !== 'undefined' ? payload.answer : payload.payload;
-      const ms = typeof payload.ms === 'number' ? payload.ms : (typeof payload.at === 'number' ? (Date.now() - payload.at) : 0);
+      // input validation
+      const parsed = validateAnswer(payload);
+      if (!parsed.success) {
+        context.log('answer validation failed', { errors: parsed.error.issues });
+        return { data: JSON.stringify({ type: 'error', error: 'invalid_answer' }), dataType: 'json' };
+      }
+      const room = parsed.data.room;
+      const qid = parsed.data.qid || parsed.data.questionId;
+      const answer = typeof parsed.data.answer !== 'undefined' ? parsed.data.answer : parsed.data.payload;
+      const ms = typeof parsed.data.ms === 'number' ? parsed.data.ms : (typeof parsed.data.at === 'number' ? (Date.now() - parsed.data.at) : 0);
+      // simple rate limit per user per 5s to avoid floods
+      try {
+        const ipKey = `ratelimit:${room}:${userId || connectionId}`;
+        const r = require('../../lib/room');
+        const client = r.__rateRedis || (r.__rateRedis = r.__getRedis?.() || null);
+        if (client && typeof client.incr === 'function') {
+          const n = await client.incr(ipKey);
+          if (n === 1 && typeof client.expire === 'function') await client.expire(ipKey, 5);
+          if (n > 20) {
+            return { data: JSON.stringify({ type: 'error', error: 'rate_limited' }), dataType: 'json' };
+          }
+        }
+      } catch {}
       const result = await submitAnswer(room, { playerId: userId || connectionId, qid, answer, ms });
       try {
         const [answers, players] = await Promise.all([
