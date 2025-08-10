@@ -1,5 +1,5 @@
 const { WebPubSubServiceClient } = require('@azure/web-pubsub');
-const { getRoomState, getPlayers, joinRoom, submitAnswer, getServiceClient } = require('../../lib/room');
+const { getRoomState, getPlayers, joinRoom, submitAnswer, getServiceClient, getAnswers } = require('../../lib/room');
 
 module.exports = async function (context, data) {
   const hub = process.env.WEBPUBSUB_HUB;
@@ -35,6 +35,13 @@ module.exports = async function (context, data) {
       const answer = typeof payload.answer !== 'undefined' ? payload.answer : payload.payload;
       const ms = typeof payload.ms === 'number' ? payload.ms : (typeof payload.at === 'number' ? (Date.now() - payload.at) : 0);
       const result = await submitAnswer(room, { playerId: userId || connectionId, qid, answer, ms });
+      try {
+        const [answers, players] = await Promise.all([
+          getAnswers(room, qid),
+          getPlayers(room)
+        ]);
+        await svc.group(room).sendToAll(JSON.stringify({ type: 'answer_progress', qid, count: answers.size || 0, total: players.length || 0 }));
+      } catch {}
       return { data: JSON.stringify({ type: 'ack', t: 'answer', result }), dataType: 'json' };
     }
     default:

@@ -64,9 +64,10 @@ module.exports = async function (context, myTimer) {
         const players = await getPlayers(room);
         players.sort((a,b)=> (b.score||0) - (a.score||0) || (a.avgMs||0) - (b.avgMs||0));
         const untilBetween = now + (round < 3 ? RULES.durations.betweenMs : 0);
-  await svc.group(room).sendToAll(JSON.stringify({ type: 'leaderboard', players: players.map(p=>({ id:p.id, name:p.name, score:p.score||0, avgMs:p.avgMs||0 })), top3: players.slice(0,3).map(p=>p.id), until: untilBetween, round }));
+        await svc.group(room).sendToAll(JSON.stringify({ type: 'leaderboard', players: players.map(p=>({ id:p.id, name:p.name, score:p.score||0, avgMs:p.avgMs||0 })), top3: players.slice(0,3).map(p=>p.id), until: untilBetween, round }));
         if (round < 3) {
           await setRoomMeta(room, { phase: 'betweenRounds', until: untilBetween, qIndex: 0, round: round + 1 });
+          await svc.group(room).sendToAll(JSON.stringify({ type: 'between_rounds', until: untilBetween, round: round + 1 }));
         } else {
           await setRoomMeta(room, { phase: 'ended', until: 0 });
           await svc.group(room).sendToAll(JSON.stringify({ type: 'ended' }));

@@ -20,6 +20,7 @@ export function HostScreen() {
   const [round, setRound] = useState<number>(1)
   const [qIndex, setQIndex] = useState<number>(0)
   const [, forceTick] = useState(0)
+  const [progress, setProgress] = useState<{count:number; total:number} | null>(null)
   useEffect(()=>{
     const t = setInterval(()=> forceTick(n=>n+1), 1000)
     return ()=> clearInterval(t)
@@ -65,7 +66,9 @@ export function HostScreen() {
   if (msg.type === 'reveal') { setPhase('reveal'); setReveal({ questionId: msg.questionId, correct: msg.correct, perPlayer: msg.perPlayer }); setUntil(msg.until || null); if(typeof msg.round==='number') setRound(msg.round); if(typeof msg.qIndex==='number') setQIndex(msg.qIndex) }
   if (msg.type === 'inter') { setPhase('inter'); setUntil(msg.until || null); if(typeof msg.round==='number') setRound(msg.round); if(typeof msg.qIndex==='number') setQIndex(msg.qIndex) }
   if (msg.type === 'leaderboard') { setPhase('leaderboard'); setLeaders(msg.players || []); setUntil(msg.until || null); if(typeof msg.round==='number') setRound(msg.round) }
-        if (msg.type === 'ended') { setPhase('ended') }
+  if (msg.type === 'between_rounds') { setPhase('inter'); setUntil(msg.until || null); if(typeof msg.round==='number') setRound(msg.round) }
+  if (msg.type === 'answer_progress') { setProgress({ count: msg.count||0, total: msg.total||0 }) }
+  if (msg.type === 'ended') { setPhase('ended') }
       }catch{}
     }
   }
@@ -116,6 +119,7 @@ export function HostScreen() {
           <div className="text-sm opacity-70">Round {round} · Q{qIndex+1} · Answering… {until ? `(${Math.max(0, Math.ceil((until - Date.now())/1000))}s)` : ''}</div>
           <CountdownBar phase="answer" until={until || undefined} />
                   <div className="text-lg">{q.text}</div>
+                  {progress && <div className="mt-2 text-sm opacity-80">Answers: {progress.count}/{progress.total}</div>}
                   {q.kind === 'mc' && Array.isArray(q.options) && (
                     <ul className="mt-2 text-sm grid gap-1">
                       {q.options.map((opt:string, idx:number)=> (<li key={idx} className="px-2 py-1 bg-black/20 rounded">{idx}. {opt}</li>))}
