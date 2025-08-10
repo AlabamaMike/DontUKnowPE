@@ -29,7 +29,11 @@ module.exports = async function (context, data) {
       return { data: JSON.stringify({ type: 'ack', t: 'hello' }), dataType: 'json' };
     }
     case 'answer': {
-      const { room, qid, answer, ms } = payload;
+      // support both shapes: { room, qid, answer, ms } and { room, questionId, payload, at }
+      const room = payload.room;
+      const qid = payload.qid || payload.questionId;
+      const answer = typeof payload.answer !== 'undefined' ? payload.answer : payload.payload;
+      const ms = typeof payload.ms === 'number' ? payload.ms : (typeof payload.at === 'number' ? (Date.now() - payload.at) : 0);
       const result = await submitAnswer(room, { playerId: userId || connectionId, qid, answer, ms });
       return { data: JSON.stringify({ type: 'ack', t: 'answer', result }), dataType: 'json' };
     }

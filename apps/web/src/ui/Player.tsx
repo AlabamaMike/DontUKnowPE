@@ -16,6 +16,7 @@ export function Player() {
   const [answered, setAnswered] = useState(false)
   const [myReveal, setMyReveal] = useState<{correct?: boolean; delta?: number; score?: number; ms?: number} | null>(null)
   const [leaders, setLeaders] = useState<Array<{id:string; name:string; score:number; avgMs:number}>>([])
+  const [until, setUntil] = useState<number | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const apiBase = getApiBase()
 
@@ -35,16 +36,17 @@ export function Player() {
       ws.onmessage = (ev) => {
       try{
         const msg = JSON.parse(ev.data)
-        if (msg.type === 'lobby') { setPhase('lobby'); setQ(null); setAnswered(false); setMyReveal(null) }
-        if (msg.type === 'question') { setPhase('question_preview'); setQ(msg.q); setAnswered(false); setMyReveal(null) }
-        if (msg.type === 'answer_open') { setPhase('answer'); setQ(msg.q); setAnswered(false); setMyReveal(null) }
+        if (msg.type === 'lobby') { setPhase('lobby'); setQ(null); setAnswered(false); setMyReveal(null); setUntil(null) }
+        if (msg.type === 'question') { setPhase('question_preview'); setQ(msg.q); setAnswered(false); setMyReveal(null); setUntil(msg.until || null) }
+        if (msg.type === 'answer_open') { setPhase('answer'); setQ(msg.q); setAnswered(false); setMyReveal(null); setUntil(msg.until || null) }
         if (msg.type === 'reveal') {
           setPhase('reveal')
           const mine = Array.isArray(msg.perPlayer) ? msg.perPlayer.find((p:any)=> p.id === playerId) : null
           if (mine) setMyReveal({ correct: !!mine.correct, delta: mine.delta, score: mine.score, ms: mine.ms })
+          setUntil(msg.until || null)
         }
-        if (msg.type === 'inter') { setPhase('inter') }
-        if (msg.type === 'leaderboard') { setPhase('leaderboard'); setLeaders(msg.players || []) }
+        if (msg.type === 'inter') { setPhase('inter'); setUntil(msg.until || null) }
+        if (msg.type === 'leaderboard') { setPhase('leaderboard'); setLeaders(msg.players || []); setUntil(msg.until || null) }
         if (msg.type === 'ended') { setPhase('ended') }
       }catch{}
       }
@@ -65,9 +67,9 @@ export function Player() {
   {stored?.name && <div className="mt-1 text-lg">{stored.name}</div>}
       <div className="text-sm opacity-70">WS: {status} | Phase: {phase}</div>
       {phase === 'lobby' && <p className="opacity-80">Waiting for the host to start…</p>}
-      {phase === 'question_preview' && q && (
+    {phase === 'question_preview' && q && (
         <div className="mt-4">
-          <div className="text-sm opacity-70">Get ready…</div>
+      <div className="text-sm opacity-70">Get ready… {until ? `(${Math.max(0, Math.ceil((until - Date.now())/1000))}s)` : ''}</div>
           <div className="text-xl mb-2">{q.text}</div>
           {q.kind === 'mc' && Array.isArray(q.options) && (
             <ul className="mt-2 text-sm grid gap-1">
@@ -76,9 +78,9 @@ export function Player() {
           )}
         </div>
       )}
-      {phase === 'answer' && q && (
+    {phase === 'answer' && q && (
         <div className="mt-4">
-          <div className="text-sm opacity-70">Answer now</div>
+      <div className="text-sm opacity-70">Answer now {until ? `(${Math.max(0, Math.ceil((until - Date.now())/1000))}s)` : ''}</div>
           <div className="text-xl mb-2">{q.text}</div>
           {q.kind === 'tf' && (
             <div className="grid grid-cols-2 gap-2">
@@ -120,9 +122,9 @@ export function Player() {
       {phase === 'inter' && (
         <div className="mt-4 opacity-80">Next question starting soon…</div>
       )}
-      {phase === 'leaderboard' && (
+    {phase === 'leaderboard' && (
         <div className="mt-4">
-          <div className="text-xl mb-2">Leaderboard</div>
+      <div className="text-xl mb-2">Leaderboard {until ? <span className="text-sm opacity-70">(next in {Math.max(0, Math.ceil((until - Date.now())/1000))}s)</span> : null}</div>
           <ul className="text-sm grid gap-1">
             {leaders.map((p,i)=> (
               <li key={p.id} className="flex justify-between px-2 py-1 bg-black/20 rounded"><span>{i+1}. {p.name}</span><span>{p.score}</span></li>

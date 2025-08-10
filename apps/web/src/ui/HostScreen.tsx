@@ -15,6 +15,7 @@ export function HostScreen() {
   const [q, setQ] = useState<any>(null)
   const [reveal, setReveal] = useState<{questionId?:string; correct?:any; perPlayer?:Array<{id:string; delta:number; score:number; correct:boolean; ms?:number}>}|null>(null)
   const [leaders, setLeaders] = useState<Array<{id:string; name:string; score:number; avgMs:number}>>([])
+  const [until, setUntil] = useState<number | null>(null)
 
   const createRoom = async () => {
     setError(null)
@@ -51,11 +52,11 @@ export function HostScreen() {
       try{
         const msg = JSON.parse(ev.data)
         if (msg.type === 'lobby') { setPlayers(msg.players); setPhase('lobby') }
-        if (msg.type === 'question') { setPhase('question_preview'); setQ(msg.q) }
-        if (msg.type === 'answer_open') { setPhase('answer'); setQ(msg.q) }
-        if (msg.type === 'reveal') { setPhase('reveal'); setReveal({ questionId: msg.questionId, correct: msg.correct, perPlayer: msg.perPlayer }) }
-        if (msg.type === 'inter') { setPhase('inter') }
-        if (msg.type === 'leaderboard') { setPhase('leaderboard'); setLeaders(msg.players || []) }
+  if (msg.type === 'question') { setPhase('question_preview'); setQ(msg.q); setUntil(msg.until || null) }
+  if (msg.type === 'answer_open') { setPhase('answer'); setQ(msg.q); setUntil(msg.until || null) }
+  if (msg.type === 'reveal') { setPhase('reveal'); setReveal({ questionId: msg.questionId, correct: msg.correct, perPlayer: msg.perPlayer }); setUntil(msg.until || null) }
+  if (msg.type === 'inter') { setPhase('inter'); setUntil(msg.until || null) }
+  if (msg.type === 'leaderboard') { setPhase('leaderboard'); setLeaders(msg.players || []); setUntil(msg.until || null) }
         if (msg.type === 'ended') { setPhase('ended') }
       }catch{}
     }
@@ -95,15 +96,15 @@ export function HostScreen() {
                   </ul>
                 </>
               )}
-              {phase === 'question_preview' && q && (
+        {phase === 'question_preview' && q && (
                 <div className="mt-3 p-3 bg-white/5 rounded">
-                  <div className="text-sm opacity-70">Get ready…</div>
+          <div className="text-sm opacity-70">Get ready… {until ? `(${Math.max(0, Math.ceil((until - Date.now())/1000))}s)` : ''}</div>
                   <div className="text-lg">{q.text}</div>
                 </div>
               )}
               {phase === 'answer' && q && (
                 <div className="mt-3 p-3 bg-white/5 rounded">
-                  <div className="text-sm opacity-70">Answering…</div>
+          <div className="text-sm opacity-70">Answering… {until ? `(${Math.max(0, Math.ceil((until - Date.now())/1000))}s)` : ''}</div>
                   <div className="text-lg">{q.text}</div>
                   {q.kind === 'mc' && Array.isArray(q.options) && (
                     <ul className="mt-2 text-sm grid gap-1">
@@ -127,7 +128,7 @@ export function HostScreen() {
               )}
               {phase === 'leaderboard' && (
                 <div className="mt-3 p-3 bg-white/5 rounded">
-                  <div className="text-lg mb-2">Leaderboard</div>
+          <div className="text-lg mb-2">Leaderboard {until ? <span className="text-sm opacity-70">(next in {Math.max(0, Math.ceil((until - Date.now())/1000))}s)</span> : null}</div>
                   <ul className="text-sm grid gap-1">
                     {leaders.map((p,i)=> (
                       <li key={p.id} className="flex justify-between px-2 py-1 bg-black/20 rounded"><span>{i+1}. {p.name}</span><span>{p.score}</span></li>
