@@ -1,0 +1,20 @@
+{
+  "name": "dontuknowpe-api-azure",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "func start",
+    "build": "echo 'no build'",
+    "lint": "echo 'no lint'"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.4.0",
+  "@azure/web-pubsub": "^1.2.0",
+    "ioredis": "^5.4.1",
+    "mssql": "^10.0.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}

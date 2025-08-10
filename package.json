@@ -2,7 +2,10 @@
   "name": "dontuknowpe",
   "private": true,
   "version": "0.0.1",
-  "workspaces": ["apps/*", "workers/*"],
+  "workspaces": [
+    "apps/*",
+    "workers/*"
+  ],
   "scripts": {
     "dev:web": "npm --workspace apps/web run dev",
     "dev:api": "npm --workspace workers/api run dev",
@@ -13,8 +16,9 @@
     "format": "prettier -w ."
   },
   "devDependencies": {
+    "@types/qrcode": "^1.5.5",
     "concurrently": "^8.2.2",
-  "prettier": "^3.3.3",
-  "@types/qrcode": "^1.5.5"
+    "prettier": "^3.3.3",
+    "wrangler": "^4.28.1"
   }
 }

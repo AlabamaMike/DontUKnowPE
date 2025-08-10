@@ -1,0 +1,12 @@
+{
+  "bindings": [
+    {
+      "type": "webPubSubTrigger",
+      "name": "data",
+      "hub": "%WEBPUBSUB_HUB%",
+      "eventName": "message",
+      "eventType": "user",
+      "direction": "in"
+    }
+  ]
+}

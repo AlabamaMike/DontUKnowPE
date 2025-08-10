@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
-import { getApiBase, getWsBase } from '../lib/config'
+import { getApiBase, getWsBase, isAzureWps } from '../lib/config'
 
 export function HostScreen() {
   const [code, setCode] = useState<string | null>(null)
@@ -27,13 +27,19 @@ export function HostScreen() {
     }
   }
 
-  const openWsForCode = (roomCode: string) => {
-  const ws = new WebSocket(`${getWsBase()}/rooms/${roomCode}/ws`)
+  const openWsForCode = async (roomCode: string) => {
+    let url = `${getWsBase()}/rooms/${roomCode}/ws`
+    if (isAzureWps()) {
+      const negotiate = await fetch(`${apiBase}/negotiate?userid=host-${roomCode}`, { method: 'POST' })
+      const conn = await negotiate.json()
+      url = conn.url
+    }
+    const ws = new WebSocket(url)
     wsRef.current = ws
     setWsStatus('connecting')
     ws.onopen = () => {
       setWsStatus('open')
-      ws.send(JSON.stringify({ type: 'hello', role: 'host' }))
+      ws.send(JSON.stringify({ type: 'hello', role: 'host', room: roomCode }))
     }
     ws.onclose = () => setWsStatus('closed')
     ws.onerror = () => setWsStatus('closed')
@@ -75,7 +81,14 @@ export function HostScreen() {
                   </li>
                 ))}
               </ul>
-              <button disabled={players.length < 2} onClick={()=> wsRef.current?.send(JSON.stringify({ type: 'start' }))} className={`mt-3 px-4 py-2 rounded ${players.length<2? 'bg-emerald-900 cursor-not-allowed':'bg-emerald-600 hover:bg-emerald-500'}`}>Start Game</button>
+              <button disabled={players.length < 2} onClick={async ()=> {
+                if (!code) return
+                if (isAzureWps()) {
+                  await fetch(`${apiBase}/rooms/${code}/start`, { method: 'POST' })
+                } else {
+                  wsRef.current?.send(JSON.stringify({ type: 'start' }))
+                }
+              }} className={`mt-3 px-4 py-2 rounded ${players.length<2? 'bg-emerald-900 cursor-not-allowed':'bg-emerald-600 hover:bg-emerald-500'}`}>Start Game</button>
             </div>
           </div>
         )}
