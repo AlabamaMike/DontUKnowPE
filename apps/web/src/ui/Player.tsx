@@ -12,6 +12,7 @@ export function Player() {
   const [status, setStatus] = useState<'connecting'|'open'|'closed'>('connecting')
   const [phase, setPhase] = useState<string>('lobby')
   const [q, setQ] = useState<any>(null)
+  const [numInput, setNumInput] = useState('')
   const wsRef = useRef<WebSocket | null>(null)
   const apiBase = getApiBase()
 
@@ -31,7 +32,6 @@ export function Player() {
       ws.onmessage = (ev) => {
       try{
         const msg = JSON.parse(ev.data)
-        if (msg.type === 'question') { setPhase('reveal'); setQ(msg.q) }
         if (msg.type === 'answer_open') { setPhase('answer'); setQ(msg.q) }
         if (msg.type === 'reveal') { setPhase('reveal') }
       }catch{}
@@ -61,6 +61,19 @@ export function Player() {
               <button className="px-4 py-3 bg-emerald-600 rounded" onClick={()=>answer(true)}>True</button>
               <button className="px-4 py-3 bg-rose-600 rounded" onClick={()=>answer(false)}>False</button>
             </div>
+          )}
+          {q.kind === 'mc' && Array.isArray(q.options) && (
+            <div className="grid gap-2">
+              {q.options.map((opt:string, idx:number)=>(
+                <button key={idx} className="px-4 py-3 bg-indigo-600 rounded" onClick={()=>answer(idx)}>{opt}</button>
+              ))}
+            </div>
+          )}
+          {q.kind === 'num' && (
+            <form className="grid gap-2" onSubmit={(e)=>{ e.preventDefault(); answer(Number(numInput)); setNumInput('') }}>
+              <input value={numInput} onChange={e=>setNumInput(e.target.value)} className="px-3 py-2 bg-white/10 rounded" placeholder="Enter number" />
+              <button className="px-4 py-2 bg-sky-600 rounded" type="submit">Submit</button>
+            </form>
           )}
         </div>
       )}

@@ -1,5 +1,5 @@
 const { getServiceClient, listActiveRooms, getRoomMeta, setRoomMeta, getPlayers, getAnswers } = require('../../lib/room');
-const { selectTfQuestions } = require('../../lib/sql');
+const { selectQuestions } = require('../../lib/sql');
 const RULES = require('../../lib/rules');
 
 // NOTE: This is a minimal scaffold to broadcast a heartbeat and prepare for phase progression.
@@ -26,7 +26,12 @@ module.exports = async function (context, myTimer) {
       const perPlayer = [];
       for (const p of players) {
         const a = answers.get(p.id);
-        const correct = a ? Boolean(a.answer) === Boolean(q?.correct) : false; // TF only
+        let correct = false;
+        if (a && q) {
+          if (q.kind === 'tf') correct = Boolean(a.answer) === Boolean(q.correct);
+          else if (q.kind === 'mc') correct = Number(a.answer) === Number(q.correct);
+          else if (q.kind === 'num') correct = Math.abs(Number(a.answer) - Number(q.correct)) <= Number(q.tolerance || 0);
+        }
         const ms = a?.ms || 0;
         const delta = correct ? base * mult : 0;
         const answersCount = (p.answers || 0) + (a ? 1 : 0);
@@ -66,7 +71,7 @@ module.exports = async function (context, myTimer) {
         continue;
       }
       const used = JSON.parse(meta.usedIds || '[]');
-      const qs = await selectTfQuestions(1, used);
+  const qs = await selectQuestions(1, used, ['tf','mc','num']);
       if (qs.length === 0) {
         await setRoomMeta(room, { phase: 'ended', until: 0 });
         await svc.group(room).sendToAll(JSON.stringify({ type: 'ended' }));
