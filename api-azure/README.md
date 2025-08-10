@@ -5,12 +5,14 @@ Endpoints
 - GET/POST /api/negotiate?userid={id} → returns Web PubSub connection info
 - Web PubSub event handler → bound via Azure Web PubSub Event Handler to this Function "events"
 - GET /api/healthz → ok
+- POST /api/rooms/{room}/start → start game (requires ADMIN_START_SECRET via header x-admin-secret or ?secret=)
 
 Environment (local.settings.json or app settings)
 - WebPubSubConnectionString
 - WEBPUBSUB_HUB=rooms
 - RedisConnectionString
 - SQL_SERVER, SQL_DATABASE, SQL_USER, SQL_PASSWORD (reserved)
+- ADMIN_START_SECRET (optional)
 
 Run locally
 1. Install Azure Functions Core Tools and Azurite.
@@ -22,6 +24,11 @@ Configure Web PubSub
 - Add an Event Handler for hub "rooms" pointing to your Function URL:
   <func-app-url>/runtime/webhooks/webpubsub?code=<system-key>&amp;hub=rooms
 - Allow events: user -> message
+
+Go-live checklist (quick)
+- Deploy this Function App and set app settings above.
+- Configure Web PubSub Event Handler to point to this Function's events webhook.
+- Set ADMIN_START_SECRET and use it from your admin UI or tool to start games.
 
 Client connect flow
 - Call /api/negotiate to get `url` then connect with the JS client to that URL.

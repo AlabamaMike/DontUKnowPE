@@ -18,6 +18,9 @@ Azure-first, serverless multiplayer trivia game ("You Don’t Know PE").
 2. Install dependencies
 3. Start API and Web in dev
 
+## Deploy
+See GO-LIVE.md for a concise runbook and GitHub Actions workflows.
+
 ## Environment
 See `api-azure/README.md` for Azure setup and local development.
 
